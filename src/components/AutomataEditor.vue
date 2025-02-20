@@ -2,7 +2,6 @@
   <div>
     <!-- Mode Selector -->
     <div class="mode-selector">
-      <label>Mode:</label>
       <button 
         @click="mode = 'create'"
         :class="{ active: mode === 'create' }"
@@ -355,12 +354,16 @@ function runTest() {
 <style>
 canvas {
   border: 1px solid #ccc;
-  margin: 20px;
+  overflow-x: hidden;
 }
 
 .mode-selector {
   padding: 10px;
   background: #eee;
+  width: 100vw;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
 }
 
 button.active {

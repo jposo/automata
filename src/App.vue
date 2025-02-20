@@ -4,16 +4,19 @@ import StateMachine from './components/AutomataEditor.vue';
 
 <template>
   <div class="app">
-    <h1>State Machine Editor</h1>
     <StateMachine />
   </div>
 </template>
 
 <style>
+body {
+  width:  100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
 .app {
-  padding: 2rem;
   max-width: 1200px;
-  margin: 0 auto;
 }
 
 h1 {
