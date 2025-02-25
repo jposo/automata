@@ -1,26 +1,26 @@
-<script setup lang="ts">
-import StateMachine from './components/AutomataEditor.vue';
-</script>
-
 <template>
-  <div class="app">
-    <StateMachine />
-  </div>
+  <v-app>
+    <v-main>
+      <AutomataEditor />
+    </v-main>
+  </v-app>
 </template>
 
-<style>
-body {
-  width:  100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-.app {
-  max-width: 1200px;
-}
+<script lang="ts">
+import { defineComponent } from 'vue'
+import AutomataEditor from './components/AutomataEditor.vue'
 
-h1 {
-  margin-bottom: 2rem;
-  color: #333;
-}
-</style>
+export default defineComponent({
+  name: 'App',
+
+  components: {
+    AutomataEditor,
+  },
+
+  data () {
+    return {
+      //
+    }
+  },
+})
+</script>

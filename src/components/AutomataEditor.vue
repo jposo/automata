@@ -2,20 +2,21 @@
   <div>
     <!-- Mode Selector -->
     <div class="mode-selector">
-      <button 
+      <v-btn
         @click="mode = 'create'"
         :class="{ active: mode === 'create' }"
       >
         Create (States & Transitions)
-      </button>
-      <button 
+      </v-btn>
+      <v-btn 
         @click="mode = 'move'"
         :class="{ active: mode === 'move' }"
       >
         Move States
-      </button>
-      <button @click="showTestModal = true">Test Input</button>
+      </v-btn>
+      <v-btn color="primary" @click="showTestModal = true">Test Input</v-btn>
     </div>
+
 
     <!-- Canvas -->
     <canvas 
@@ -54,15 +55,40 @@
     </div>
 
     <!-- Test Modal -->
-    <div v-if="showTestModal" class="modal">
-      <div class="modal-content">
-        <h3>Test Input</h3>
-        <input v-model="testInput" />
-        <button @click="runTest">Test</button>
-        <p>Result: {{ testResult }}</p>
-        <button @click="showTestModal = false">Close</button>
-      </div>
-    </div>
+    <v-dialog v-model="showTestModal" max-width="400px">
+      <v-card>
+        <v-card-title class="text-h5">
+          Test Input
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="testInput"
+                  label="Enter test input"
+                  outlined
+                ></v-text-field>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="12">
+                <p>Result: {{ testResult }}</p>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" @click="runTest">
+            Test
+          </v-btn>
+          <v-btn color="grey darken-1" text @click="showTestModal = false">
+            Close
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -160,7 +186,7 @@ function drawState(state, isInitial) {
   ctx.value.fillStyle = 'white';
   ctx.value.textAlign = 'center';
   ctx.value.textBaseline = 'middle';
-  ctx.value.font = '16px Arial';
+  ctx.value.font = '16px sans-serif';
   ctx.value.fillText(state.name, state.x, state.y);
 }
 
