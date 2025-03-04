@@ -1,95 +1,99 @@
 <template>
-  <div>
-    <!-- Mode Selector -->
-    <div class="mode-selector">
-      <v-btn
-        @click="mode = 'create'"
-        :class="{ active: mode === 'create' }"
-      >
-        Create (States & Transitions)
-      </v-btn>
-      <v-btn 
-        @click="mode = 'move'"
-        :class="{ active: mode === 'move' }"
-      >
-        Move States
-      </v-btn>
-      <v-btn color="primary" @click="showTestModal = true">Test Input</v-btn>
-    </div>
-
-
-    <!-- Canvas -->
-    <canvas 
-      ref="canvas"
-      @mousedown="handleMouseDown"
-      @mousemove="handleMouseMove"
-      @mouseup="handleMouseUp"
-      @contextmenu.prevent="handleContextMenu"
-    ></canvas>
-
-    <!-- Context Menu -->
-    <div 
-      v-if="contextMenu.stateIndex !== null"
-      :style="contextMenuStyle"
-      class="context-menu"
-    >
-      <div v-if="contextMenu.stateIndex !== null">
-        <h3>Options for {{ states[contextMenu.stateIndex].name }}</h3>
-        <button @click="deleteState(contextMenu.stateIndex)">Delete State</button>
-        <button @click="setInitialState(contextMenu.stateIndex)">Set as Initial</button>
-        <button @click="toggleFinalState(contextMenu.stateIndex)">
-          {{ states[contextMenu.stateIndex].isFinal ? 'Unset Final' : 'Set Final' }}
-        </button>
-        <button @click="closeContextMenu">Close</button>
-      </div>
-    </div>
-
-    <!-- Transition Edit Modal -->
-    <div v-if="editingTransition !== null" class="modal">
-      <div class="modal-content">
-        <h3>Edit Transition Symbol</h3>
-        <input v-model="transitionEditText" />
-        <button @click="saveTransitionEdit">OK</button>
-        <button @click="cancelTransitionEdit">Cancel</button>
-      </div>
-    </div>
-
-    <!-- Test Modal -->
-    <v-dialog v-model="showTestModal" max-width="400px">
-      <v-card>
-        <v-card-title class="text-h5">
-          Test Input
-        </v-card-title>
-        <v-card-text>
-          <v-container>
-            <v-row>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="testInput"
-                  label="Enter test input"
-                  outlined
-                ></v-text-field>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12">
-                <p>Result: {{ testResult }}</p>
-              </v-col>
-            </v-row>
-          </v-container>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="primary" @click="runTest">
-            Test
-          </v-btn>
-          <v-btn color="grey darken-1" text @click="showTestModal = false">
-            Close
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+  <!-- Mode Selector -->
+  <div class="mode-selector">
+    <v-btn @click="mode = 'create'" :class="{ active: mode === 'create' }">
+      Create (States & Transitions)
+    </v-btn>
+    <v-btn @click="mode = 'move'" :class="{ active: mode === 'move' }">
+      Move States
+    </v-btn>
+    <v-btn color="primary" @click="showTestModal = true">Test Input</v-btn>
   </div>
+
+  <!-- Canvas -->
+  <canvas ref="canvas" @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseup="handleMouseUp"
+    @contextmenu.prevent="handleContextMenu"></canvas>
+
+  <!-- Context Menu -->
+  <v-menu v-if="contextMenu.stateIndex !== null" :style="contextMenuStyle" v-model="contextMenuVisible" offset-y>
+    <template v-slot:activator="{ on, attrs }">
+      <div v-bind="attrs" v-on="on"></div>
+    </template>
+    <v-list>
+      <v-list-item @click="deleteState(contextMenu.stateIndex)">
+        <v-list-item-title>Delete State</v-list-item-title>
+      </v-list-item>
+      <v-list-item @click="setInitialState(contextMenu.stateIndex)">
+        <v-list-item-title>Set as Initial</v-list-item-title>
+      </v-list-item>
+      <v-list-item @click="toggleFinalState(contextMenu.stateIndex)">
+        <v-list-item-title>
+          {{ states[contextMenu.stateIndex].isFinal ? 'Unset Final' : 'Set Final' }}
+        </v-list-item-title>
+      </v-list-item>
+      <v-list-item @click="closeContextMenu">
+        <v-list-item-title>Close</v-list-item-title>
+      </v-list-item>
+    </v-list>
+  </v-menu>
+
+  <v-dialog v-model="transitionEditVisible" max-width="400px">
+    <v-card>
+      <v-card-title class="text-h5">
+        Edit Transition Symbol
+      </v-card-title>
+      <v-card-text>
+        <v-container>
+          <v-row>
+            <v-col cols="12">
+              <v-text-field v-model="transitionEditText" label="Enter symbol" outlined></v-text-field>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="primary" @click="saveTransitionEdit">
+          OK
+        </v-btn>
+        <v-btn color="grey darken-1" text @click="cancelTransitionEdit">
+          Close
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Test Modal -->
+  <v-dialog v-model="showTestModal" max-width="400px">
+    <v-card>
+      <v-card-title class="text-h5">
+        Test Input
+      </v-card-title>
+      <v-card-text>
+        <v-container>
+          <v-row>
+            <v-col cols="12">
+              <v-text-field v-model="testInput" label="Enter test input" outlined></v-text-field>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12">
+              <p>Result: {{ testResult }}</p>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="primary" @click="runTest">
+          Test
+        </v-btn>
+        <v-btn color="grey darken-1" text @click="showTestModal = false">
+          Close
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
@@ -119,6 +123,8 @@ const contextMenu = reactive({
 const editingTransition = ref(null);
 const transitionEditText = ref('');
 const showTestModal = ref(false);
+const contextMenuVisible = ref(false);
+const transitionEditVisible = ref(false);
 const testInput = ref('');
 const testResult = ref('');
 
@@ -126,6 +132,13 @@ const contextMenuStyle = computed(() => ({
   left: `${contextMenu.x}px`,
   top: `${contextMenu.y}px`
 }));
+
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.keyCode == 90) {
+    states.value.pop();
+    stateCounter.value--;
+  }
+})
 
 onMounted(() => {
   ctx.value = canvas.value.getContext('2d');
@@ -172,7 +185,7 @@ function draw() {
 function drawState(state, isInitial) {
   ctx.value.beginPath();
   ctx.value.arc(state.x, state.y, state.radius, 0, Math.PI * 2);
-  ctx.value.fillStyle = isInitial ? '#ff0000' : '#6496c8';
+  ctx.value.fillStyle = '#6496c8';
   ctx.value.fill();
   ctx.value.strokeStyle = 'black';
   ctx.value.stroke();
@@ -183,10 +196,34 @@ function drawState(state, isInitial) {
     ctx.value.stroke();
   }
 
+  if (isInitial) {
+    const leftMostPointX = state.x - state.radius;
+    const lineWidth = state.radius * 2;
+    const headWidth = lineWidth * 0.25;
+    // Arrow line
+    ctx.value.beginPath();
+    ctx.value.moveTo(leftMostPointX, state.y);
+    ctx.value.lineTo(leftMostPointX - lineWidth, state.y);
+    ctx.value.strokeStyle = 'black';
+    ctx.value.stroke();
+    // Arrow head
+    ctx.value.beginPath();
+    ctx.value.moveTo(leftMostPointX, state.y);
+    ctx.value.lineTo(leftMostPointX - headWidth, state.y + headWidth);
+    ctx.value.strokeStyle = 'black';
+    ctx.value.stroke();
+    // Arrow head
+    ctx.value.beginPath();
+    ctx.value.moveTo(leftMostPointX, state.y);
+    ctx.value.lineTo(leftMostPointX - headWidth, state.y - headWidth);
+    ctx.value.strokeStyle = 'black';
+    ctx.value.stroke();
+  }
+
   ctx.value.fillStyle = 'white';
   ctx.value.textAlign = 'center';
   ctx.value.textBaseline = 'middle';
-  ctx.value.font = '16px sans-serif';
+  ctx.value.font = '16px verdana';
   ctx.value.fillText(state.name, state.x, state.y);
 }
 
@@ -254,12 +291,16 @@ function handleMouseUp(event) {
     const y = event.clientY - rect.top;
     const endIndex = findStateAt(x, y);
     
-    if (endIndex !== -1 && endIndex !== transitionDragStart.value) {
-      transitions.value.push({
-        from: transitionDragStart.value,
-        to: endIndex,
-        symbol: '1'
-      });
+    if (endIndex !== -1) {
+      if (endIndex !== transitionDragStart.value) {
+        transitions.value.push({
+          from: transitionDragStart.value,
+          to: endIndex,
+          symbol: '1'
+        });
+      } else {
+        alert('Same state to state');
+      }
     }
   }
   
@@ -277,12 +318,14 @@ function handleContextMenu(event) {
     contextMenu.stateIndex = stateIndex;
     contextMenu.x = event.clientX;
     contextMenu.y = event.clientY;
+    contextMenuVisible.value = true;
     return;
   }
   
   const transitionIndex = findTransitionNear(x, y);
   if (transitionIndex !== -1) {
     editingTransition.value = transitionIndex;
+    transitionEditVisible.value = true;
     transitionEditText.value = transitions.value[transitionIndex].symbol;
   }
 }
@@ -342,16 +385,19 @@ function toggleFinalState(index) {
 
 function closeContextMenu() {
   contextMenu.stateIndex = null;
+  contextMenuVisible.value = false;
 }
 
 // Transition editing
 function saveTransitionEdit() {
   transitions.value[editingTransition.value].symbol = transitionEditText.value;
+  transitionEditVisible.value = false;
   editingTransition.value = null;
 }
 
 function cancelTransitionEdit() {
   editingTransition.value = null;
+  transitionEditVisible.value = false;
 }
 
 // Test execution
