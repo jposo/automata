@@ -1,26 +1,26 @@
 <template>
   <v-app>
-    <v-main>
+    <v-main style="font-family: 'Roboto', sans-serif">
       <AutomataEditor />
     </v-main>
   </v-app>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
-import AutomataEditor from './components/AutomataEditor.vue'
+import { defineComponent } from "vue";
+import AutomataEditor from "./components/AutomataEditor.vue";
 
 export default defineComponent({
-  name: 'App',
+  name: "App",
 
   components: {
     AutomataEditor,
   },
 
-  data () {
+  data() {
     return {
       //
-    }
+    };
   },
-})
+});
 </script>
