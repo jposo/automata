@@ -7,6 +7,12 @@
     style="display: none"
     accept=".at"
   />
+  <!-- Tabs -->
+  <v-tabs v-model="tabIndex" bg-color="primary">
+    <v-tab>Automata 1</v-tab>
+    <v-tab>Automata 1</v-tab>
+  </v-tabs>
+
   <!-- Mode Selector -->
   <div class="top-menu" id="top-menu">
     <div class="mode-selector">
@@ -135,9 +141,11 @@ const ctx = ref(null);
 
 // App state
 const mode = ref("create");
+const automatas = ref([]);
 const states = ref([]);
 const transitions = ref([]);
 const stateCounter = ref(0);
+const tabIndex = ref(0);
 const initial = ref(null);
 const draggingState = reactive({
   index: null,
@@ -199,6 +207,24 @@ function fromJSON(json) {
   }
 }
 
+function getAutomatas() {
+  return localStorage.getItem("automatas");
+}
+
+function setAutomatas(automatas) {
+  localStorage.setItem("automatas", automatas);
+}
+
+function saveAutomata(tabIndex) {
+  // get localstorage
+  const automatas = getAutomatas();
+  const automata = toJSON();
+  localStorage.setItem(
+    "automatas",
+    automatas ? automatas + "," + automata : automata
+  );
+}
+
 function resizeCanvas() {
   canvas.value.width = window.innerWidth;
   canvas.value.height =
@@ -231,15 +257,15 @@ function draw() {
     drawState(state, index === initial.value);
   });
 
-  // Draw dragging transition preview
-  if (transitionDragStart.value !== null) {
-    const fromState = states.value[transitionDragStart.value];
-    ctx.value.beginPath();
-    ctx.value.moveTo(fromState.x, fromState.y);
-    ctx.value.lineTo(draggingState.currentX, draggingState.currentY);
-    ctx.value.strokeStyle = "black";
-    ctx.value.stroke();
-  }
+  // Draw dragging transition preview (NOT WORKING)
+  // if (transitionDragStart.value !== null) {
+  //   const fromState = states.value[transitionDragStart.value];
+  //   ctx.value.beginPath();
+  //   ctx.value.moveTo(fromState.x, fromState.y);
+  //   ctx.value.lineTo(draggingState.currentX, draggingState.currentY);
+  //   ctx.value.strokeStyle = "black";
+  //   ctx.value.stroke();
+  // }
   requestAnimationFrame(draw);
 }
 
@@ -329,7 +355,7 @@ function drawTransition(from, to, transition) {
     // Draw symbol
     ctx.value.fillStyle = "black";
     ctx.value.fillText(
-      transition.symbol.value,
+      transition.symbol.values.join(", "),
       from.x,
       from.y - relativeSize * 2.0 + 10
     );
@@ -350,7 +376,7 @@ function drawTransition(from, to, transition) {
   const midX = (from.x + to.x) / 2;
   const midY = (from.y + to.y) / 2;
   ctx.value.fillStyle = "black";
-  ctx.value.fillText(transition.symbol.value, midX + 10, midY + 10);
+  ctx.value.fillText(transition.symbol.values.join(", "), midX + 10, midY + 10);
   transition.symbol.position = {
     x: midX + 10,
     y: midY + 10,
@@ -388,7 +414,8 @@ function handleMouseDown(event) {
         name: `q${stateCounter.value++}`,
         isFinal: false,
       });
-      localStorage.setItem("automata", toJSON());
+      // save state
+      // localStorage.setItem("automatas", fromJSON(localStorage.getItem("automatas")[tabIndex.value] = ));
     } else {
       // Start a new transition
       transitionDragStart.value = stateIndex;
@@ -407,10 +434,9 @@ function handleMouseMove(event) {
     localStorage.setItem("automata", toJSON());
   } else if (transitionDragStart.value !== null) {
     // Draw transition cursor line
-    transitionDragEnd.value = { x, y };
-    isDrawingTransition.value = true;
-
-    draw();
+    // transitionDragEnd.value = { x, y };
+    // isDrawingTransition.value = true;
+    // draw();
   }
 }
 
@@ -423,12 +449,20 @@ function handleMouseUp(event) {
     const endIndex = findStateAt(x, y);
 
     if (endIndex !== -1) {
+      // Check if transition from to already exists
+      const existingTransition = transitions.value.find(
+        (t) => t.from === transitionDragStart.value && t.to === endIndex
+      );
+      if (existingTransition) {
+        existingTransition.symbol.values.push(epsilon);
+        return;
+      }
       // Create transition
       transitions.value.push({
         from: transitionDragStart.value,
         to: endIndex,
         symbol: {
-          value: epsilon,
+          values: [epsilon],
           position: { x, y },
         },
       });
@@ -467,7 +501,8 @@ function handleContextMenu(event) {
 function openTransitionEdit(transitionIndex) {
   editingTransition.value = transitionIndex;
   transitionEditVisible.value = true;
-  transitionEditText.value = transitions.value[transitionIndex].symbol.value;
+  transitionEditText.value =
+    transitions.value[transitionIndex].symbol.values.join(",");
 }
 
 // Helper functions
@@ -487,9 +522,6 @@ function findTransitionNear(x, y) {
       y: t.symbol.position.y,
     };
     return distanceToPoint(pos, a) < 30;
-    // const a = states.value[t.from];
-    // const b = states.value[t.to];
-    // return distanceToLineSegment(pos, a, b) < (t.from !== t.to ? 10 : 20);
   });
 }
 
@@ -499,28 +531,14 @@ function distanceToPoint(p, a) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-// function distanceToLineSegment(p, a, b) {
-//   const ab = { x: b.x - a.x, y: b.y - a.y };
-//   const ap = { x: p.x - a.x, y: p.y - a.y };
-//   const abLengthSq = ab.x ** 2 + ab.y ** 2;
-
-//   let t = 0;
-//   if (abLengthSq !== 0) {
-//     t = (ap.x * ab.x + ap.y * ab.y) / abLengthSq;
-//     t = Math.max(0, Math.min(1, t));
-//   }
-
-//   const projection = {
-//     x: a.x + ab.x * t,
-//     y: a.y + ab.y * t,
-//   };
-
-//   return Math.sqrt((p.x - projection.x) ** 2 + (p.y - projection.y) ** 2);
-// }
-
 // Context menu actions
 function deleteState(index) {
+  // Delete state
   states.value.splice(index, 1);
+  // Delete transitions related to state
+  transitions.value = transitions.value.filter(
+    (t) => t.from !== index && t.to !== index
+  );
   localStorage.setItem("automata", toJSON());
   closeContextMenu();
 }
@@ -543,8 +561,8 @@ function closeContextMenu() {
 
 // Transition editing
 function saveTransitionEdit() {
-  transitions.value[editingTransition.value].symbol.value =
-    transitionEditText.value;
+  transitions.value[editingTransition.value].symbol.values =
+    transitionEditText.value.split(",").map((value) => value.trim());
   transitionEditVisible.value = false;
   editingTransition.value = null;
   localStorage.setItem("automata", toJSON());
@@ -557,24 +575,74 @@ function cancelTransitionEdit() {
 
 // Test execution
 function runTest() {
-  let current = initial.value;
-  if (current === null || current >= states.value.length) {
-    testResult.value = "No initial state";
-    return;
-  }
-
-  for (const char of testInput.value) {
-    const transition = transitions.value.find(
-      (t) => t.from === current && t.symbol.value === char
+  function getTransitions(currentState, symbol) {
+    const _transitions = transitions.value.filter(
+      (t) => t.from === currentState && t.symbol.values.includes(symbol)
     );
-    if (!transition) {
-      testResult.value = "Rejected";
-      return;
-    }
-    current = transition.to;
+    return _transitions.length > 0 ? _transitions[0].to : null;
   }
 
-  testResult.value = states.value[current]?.isFinal ? "Accepted" : "Rejected";
+  function epsilonClosure(states) {
+    const closure = new Set(states);
+    const queue = [...states];
+    while (queue.length > 0) {
+      const state = queue.shift();
+      const epsilonTransitions = transitions.value.filter(
+        (t) => t.from === state && t.symbol.values.includes(epsilon)
+      );
+      for (const transition of epsilonTransitions) {
+        if (!closure.has(transition.to)) {
+          closure.add(transition.to);
+          queue.push(transition.to);
+        }
+      }
+    }
+    return Array.from(closure);
+  }
+
+  function dfs(currentStates, remainingInput) {
+    currentStates = epsilonClosure(currentStates);
+    if (remainingInput.length === 0) {
+      return currentStates.some((state) => states.value[state].isFinal);
+    }
+    const nextSymbol = remainingInput[0];
+    const nextStates = new Set();
+    for (const state of currentStates) {
+      for (const nextState in getTransitions(state, nextSymbol)) {
+        nextStates.add(nextState);
+      }
+      // const transition = transitions.value.find(
+      //   (t) => t.from === state && t.symbol.value === symbol
+      // );
+      // if (transition) {
+      //   nextStates.add(transition.to);
+      // }
+    }
+    return dfs(Array.from(nextStates), remainingInput.slice(1));
+  }
+
+  const result = dfs([initial.value], testInput.value);
+
+  testResult.value = result ? "Accepted" : "Rejected";
+
+  // let current = initial.value;
+  // if (current === null || current >= states.value.length) {
+  //   testResult.value = "No initial state";
+  //   return;
+  // }
+
+  // for (const char of testInput.value) {
+  //   const transition = transitions.value.find(
+  //     (t) => t.from === current && t.symbol.value === char
+  //   );
+  //   if (!transition) {
+  //     testResult.value = "Rejected";
+  //     return;
+  //   }
+  //   current = transition.to;
+  // }
+
+  // testResult.value = states.value[current]?.isFinal ? "Accepted" : "Rejected";
 }
 
 function clearAutomata() {
@@ -613,7 +681,6 @@ function loadFromDevice(event) {
     fromJSON(e.target.result);
   };
   reader.readAsText(file);
-  console.log(reader);
 }
 </script>
 
