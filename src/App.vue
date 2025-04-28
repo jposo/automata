@@ -1,6 +1,8 @@
 <template>
   <v-app>
-    <v-main style="font-family: 'Roboto', sans-serif">
+    <v-main
+      style="font-family: 'Roboto', sans-serif; overflow: hidden; height: 100vh"
+    >
       <AutomataEditor />
     </v-main>
   </v-app>

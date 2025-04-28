@@ -1,21 +1,35 @@
+import Point from "./Point";
+import { nanoid } from "nanoid";
+
 export default class State {
+  id: string;
+  name: string;
+  center: Point;
+  isFinal: boolean;
+  radius: number;
+
   constructor(
-    public name: string,
-    public isFinal: boolean,
-    public center: { x: number; y: number },
-    public radius = 5,
-    public color = "#121212"
-  ) {}
-
-  get x(): number {
-    return this.center.x;
+    name?: string,
+    center?: Point,
+    isFinal?: boolean,
+    radius?: number
+  ) {
+    this.id = nanoid();
+    this.name = name || "qx";
+    this.center = center || new Point(0, 0);
+    this.isFinal = isFinal || false;
+    this.radius = radius || 30;
   }
 
-  get y(): number {
-    return this.center.y;
-  }
+  // get x(): number {
+  //   return this.center.x;
+  // }
 
-  toString(): string {
-    return `State(name="${this.name}")`;
-  }
+  // get y(): number {
+  //   return this.center.y;
+  // }
+
+  // toString(): string {
+  //   return `State(name="${this.name}")`;
+  // }
 }

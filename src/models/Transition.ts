@@ -1,9 +1,21 @@
-import State from './State';
+import State from "./State";
+import Symbol from "./Symbol";
 
 export default class Transition {
-    constructor(
-        from: State,
-        to: State,
-        symbol: string,
-    ) {}
+  from: State;
+  to: State;
+  symbol: Symbol;
+  constructor(from?: State, to?: State, symbol?: Symbol) {
+    this.from = from || new State();
+    this.to = to || new State();
+    this.symbol = symbol || new Symbol();
+  }
+
+  public addSymbol(symbol: string): void {
+    this.symbol.values.push(symbol);
+  }
+
+  public removeSymbol(symbol: string): void {
+    this.symbol.values = this.symbol.values.filter((value) => value !== symbol);
+  }
 }
