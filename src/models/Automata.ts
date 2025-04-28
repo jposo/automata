@@ -1,5 +1,6 @@
 import State from "./State";
 import Transition from "./Transition";
+import Symbol from "./Symbol";
 import { epsilon } from "../global";
 
 export default class Automata {
@@ -161,6 +162,74 @@ export default class Automata {
       }
     }
     return Array.from(currentStates).some((state) => state.isFinal);
+  }
+
+  public alphabet(): string[] {
+    const symbols = new Set<string>();
+    for (const transition of this.transitions) {
+      for (const symbol of transition.symbol.values) {
+        if (symbol !== "") {
+          symbols.add(symbol);
+        }
+      }
+    }
+    return Array.from(symbols);
+  }
+
+  public convertToDFA() {
+    const dfaStates = new Set<State>();
+    const dfaTransitions = new Set<Transition>();
+
+    const initialStates: Set<State> = this.epsilonClosure(this.initial);
+    const alphabet = this.alphabet();
+    console.log(alphabet);
+    const queue: Set<State>[] = [initialStates];
+    let count = 0;
+    while (queue.length) {
+      const currentStateSet = queue.shift() as Set<State>;
+      const currentState = new State(
+        `${count++}`,
+        currentStateSet.values().next().value.center
+      );
+      dfaStates.add(currentState);
+      for (const symbol of alphabet) {
+        for (const state of currentStateSet) {
+          if (
+            this.transitions.some(
+              (transition) =>
+                transition.from.id === state.id &&
+                transition.symbol.values.includes(symbol)
+            )
+          ) {
+            const nextStates = this.epsilonClosure(
+              this.transitions.find(
+                (transition) =>
+                  transition.from.id === state.id &&
+                  transition.symbol.values.includes(symbol)
+              )!.to
+            );
+            queue.push(nextStates);
+            const nextState = new State(
+              `${count++}`,
+              nextStates.values().next().value.center
+            );
+            const transition = new Transition(
+              currentState,
+              nextState,
+              new Symbol([symbol])
+            );
+            dfaTransitions.add(transition);
+          }
+        }
+      }
+    }
+    const dfa = new Automata(
+      "New DFA",
+      Array.from(dfaStates),
+      Array.from(dfaTransitions)
+    );
+    console.log(dfa);
+    return dfa;
   }
 
   public isDFA(): boolean {

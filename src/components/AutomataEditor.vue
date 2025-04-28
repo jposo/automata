@@ -44,7 +44,7 @@
         "
         >Test Input</v-btn
       >
-      <v-btn color="primary">Convert to DFA</v-btn>
+      <v-btn color="primary" @click="convertToDFA">Convert to DFA</v-btn>
     </div>
   </div>
 
@@ -186,7 +186,7 @@ const canvas = ref(null);
 const ctx = ref(null);
 
 // App state
-const automatas: Automata[] = ref([]);
+const automatas = ref([]);
 const automataType = ref(true); // false for NFA, true for DFA
 const mode = ref("create");
 const tabIndex = ref(0);
@@ -661,6 +661,12 @@ function closeTransitionEdit() {
 function runTest() {
   const result = automatas.value[tabIndex.value].runInput(testInput.value);
   testResult.value = result ? "Accepted" : "Rejected";
+}
+
+function convertToDFA() {
+  const dfa = automatas.value[tabIndex.value].convertToDFA();
+  automatas.value.push(dfa);
+  automatas.value[tabIndex.value].save(tabIndex.value);
 }
 
 function clearAutomata() {
