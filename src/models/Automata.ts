@@ -162,4 +162,23 @@ export default class Automata {
     }
     return Array.from(currentStates).some((state) => state.isFinal);
   }
+
+  public isDFA(): boolean {
+    if (
+      this.transitions.some((transition) =>
+        transition.symbol.values.includes("")
+      )
+    ) {
+      return false;
+    }
+    const counts = new Map();
+
+    // not correct, need to check out symbol is unique
+    for (const transition of this.transitions) {
+      const key = `${transition.from.id}-${transition.symbol.values[0]}`;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+
+    return Array.from(counts.values()).every((count) => count === 1);
+  }
 }

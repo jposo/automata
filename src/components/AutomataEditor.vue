@@ -36,7 +36,15 @@
         Move States
       </v-btn>
       <br />
-      <v-btn color="primary" @click="showTestModal = true">Test Input</v-btn>
+      <v-btn
+        color="primary"
+        @click="
+          showTestModal = true;
+          automataType = automatas[tabIndex].isDFA();
+        "
+        >Test Input</v-btn
+      >
+      <v-btn color="primary">Convert to DFA</v-btn>
     </div>
   </div>
 
@@ -145,7 +153,10 @@
             </v-col>
           </v-row>
           <v-row>
-            <v-col cols="12">
+            <v-col cols="6">
+              <p>Type: {{ automataType ? "DFA" : "NFA" }}</p>
+            </v-col>
+            <v-col cols="6">
               <p>Result: {{ testResult }}</p>
             </v-col>
           </v-row>
@@ -176,6 +187,7 @@ const ctx = ref(null);
 
 // App state
 const automatas: Automata[] = ref([]);
+const automataType = ref(true); // false for NFA, true for DFA
 const mode = ref("create");
 const tabIndex = ref(0);
 const draggingState = reactive({
@@ -615,7 +627,7 @@ function deleteState(index) {
 
 function setInitialState(index) {
   const state = automatas.value[tabIndex.value].states[index];
-  automatas.value[tabIndex.value].initial.setInitial(state);
+  automatas.value[tabIndex.value].setInitial(state);
   automatas.value[tabIndex.value].save(tabIndex.value);
   closeContextMenu();
 }
