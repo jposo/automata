@@ -15,6 +15,7 @@
       @click="selectAutomata(index)"
     >
       {{ automata.name }}
+      <v-icon icon="mdi-close" end @click="removeAutomata(index)"></v-icon>
     </v-tab>
     <v-btn height="100%" @click="createNewAutomata" variant="plain"
       >(New)</v-btn
@@ -124,7 +125,7 @@
         </v-row>
       </v-card-text>
       <v-card-actions>
-        <v-spacer></v-spacer>
+        <v-spacer />
         <v-btn color="error" @click="deleteTransition()"> Delete </v-btn>
         <v-btn
           color="primary"
@@ -217,8 +218,8 @@ const contextMenuStyle = computed(() => ({
 
 window.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.keyCode == 90) {
-    automatas.value[tabIndex.value].states.value.pop();
-    automatas.value[tabIndex.value].stateCounter.value--;
+    automatas.value[tabIndex.value].popState();
+    automatas.value[tabIndex.value].save(tabIndex.value);
   }
 });
 
@@ -456,6 +457,12 @@ function createNewAutomata() {
   automatas.value[tabIndex.value].save(tabIndex.value);
 }
 
+function removeAutomata(index) {
+  automatas.value.splice(index, 1);
+  tabIndex.value = 0;
+  localStorage.setItem("automatas", JSON.stringify(automatas.value));
+}
+
 // Event handlers
 function handleMouseDown(event) {
   if (event.button === 2) return;
@@ -620,7 +627,7 @@ function deleteTransition() {
 function deleteState(index) {
   // Delete state
   const state = automatas.value[tabIndex.value].states[index];
-  automatas.value[tabIndex.value].removeState(state);
+  automatas.value[tabIndex.value].deleteState(state);
   automatas.value[tabIndex.value].save(tabIndex.value);
   closeContextMenu();
 }
@@ -648,7 +655,7 @@ function addTransitionSymbol() {
   if (editingTransitionIndex.value === null) return;
   automatas.value[tabIndex.value].transitions[
     editingTransitionIndex.value
-  ].addSymbol.push("");
+  ].addSymbol("");
   automatas.value[tabIndex.value].save(tabIndex.value);
 }
 
@@ -666,7 +673,9 @@ function runTest() {
 function convertToDFA() {
   const dfa = automatas.value[tabIndex.value].convertToDFA();
   automatas.value.push(dfa);
-  automatas.value[tabIndex.value].save(tabIndex.value);
+  dfa.save(
+    automatas.value.length - 1
+  );
 }
 
 function clearAutomata() {
@@ -684,7 +693,7 @@ function saveToDevice() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${Date.now()}.at`;
+  a.download = `${automatas.value[tabIndex.value].name}.at`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -21,6 +21,10 @@ export default class State {
     this.radius = radius || 30;
   }
 
+  public setId(id: string): void {
+    this.id = id;
+  }
+
   // get x(): number {
   //   return this.center.x;
   // }

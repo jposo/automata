@@ -43,6 +43,15 @@ export default class Automata {
     }
   }
 
+  public popState(): State | null {
+    if (this.states.length > 0) {
+      const state = this.states[this.states.length - 1];
+      this.deleteState(state);
+      return state;
+    }
+    return null;
+  }
+
   public addTransition(transition: Transition): void {
     this.transitions.push(transition);
     this.transitionCount++;
@@ -83,9 +92,10 @@ export default class Automata {
 
   private fromJSON(json: Automata): void {
     this.name = json.name;
-    this.states = json.states;
-    this.transitions = json.transitions;
-    this.initial = json.initial;
+    this.states = this.createStates(json.states);
+    this.transitions = this.createTransitions(json.transitions);
+    this.initial = this.states.find(
+      (state) => state.id === json.initial?.id)!;
     this.stateCount = json.states.length;
     this.transitionCount = json.transitions.length;
   }
@@ -103,12 +113,34 @@ export default class Automata {
     const data = automatas[index];
     if (data) {
       this.name = data.name;
-      this.states = data.states;
-      this.transitions = data.transitions;
-      this.initial = data.initial;
+      this.states = this.createStates(data.states);
+      this.transitions = this.createTransitions(data.transitions);
+      this.initial = this.states.find(
+        (state) => state.id === data.initial?.id)!;
       this.stateCount = data.states.length;
       this.transitionCount = data.transitions.length;
     }
+  }
+
+  private createStates(obj: any): State[] {
+    const states: State[] = [];
+    for (const state of obj) {
+      const newState = new State(state.name, state.center, state.isFinal, state.radius);
+      newState.setId(state.id);
+      states.push(newState);
+    }
+    return states;
+  }
+
+  private createTransitions(obj: any): Transition[] {
+    const transitions: Transition[] = [];
+    for (const transition of obj) {
+      const fromState = this.states.find((state) => state.id === transition.from.id);
+      const toState = this.states.find((state) => state.id === transition.to.id);
+      const newTransition = new Transition(fromState, toState, new Symbol(transition.symbol.values, transition.symbol.position));
+      transitions.push(newTransition);
+    }
+    return transitions;
   }
 
   private epsilonClosure(state: State | null): Set<State> {
@@ -182,14 +214,19 @@ export default class Automata {
 
     const initialStates: Set<State> = this.epsilonClosure(this.initial);
     const alphabet = this.alphabet();
-    console.log(alphabet);
     const queue: Set<State>[] = [initialStates];
+    const visitedStates = new Map<Set<State>, boolean>();
     let count = 0;
     while (queue.length) {
       const currentStateSet = queue.shift() as Set<State>;
+      if (visitedStates.has(currentStateSet)) {
+        continue;
+      }
+      visitedStates.set(currentStateSet, true);
       const currentState = new State(
-        `${count++}`,
-        currentStateSet.values().next().value.center
+        `q${count++}`,
+        currentStateSet.values().next().value.center,
+        Array.from(currentStateSet).some((state) => state.isFinal),
       );
       dfaStates.add(currentState);
       for (const symbol of alphabet) {
@@ -201,18 +238,21 @@ export default class Automata {
                 transition.symbol.values.includes(symbol)
             )
           ) {
-            const nextStates = this.epsilonClosure(
+            const nextStateSet = this.epsilonClosure(
               this.transitions.find(
                 (transition) =>
                   transition.from.id === state.id &&
                   transition.symbol.values.includes(symbol)
               )!.to
             );
-            queue.push(nextStates);
+
+            queue.push(nextStateSet);
             const nextState = new State(
-              `${count++}`,
-              nextStates.values().next().value.center
+              `q${count++}`,
+              nextStateSet.values().next().value.center,
+              Array.from(currentStateSet).some((state) => state.isFinal),
             );
+            dfaStates.add(nextState);
             const transition = new Transition(
               currentState,
               nextState,
@@ -224,11 +264,11 @@ export default class Automata {
       }
     }
     const dfa = new Automata(
-      "New DFA",
+      `${this.name} as DFA`,
       Array.from(dfaStates),
-      Array.from(dfaTransitions)
+      Array.from(dfaTransitions),
+      dfaStates.values().next().value
     );
-    console.log(dfa);
     return dfa;
   }
 
