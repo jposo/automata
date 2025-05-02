@@ -229,49 +229,88 @@ export default class Automata {
   }
 
   public convertToDFA() {
-    const dfaStates = new Set<State>();
+    const dfaStates = new Map<string, State>();
     const dfaTransitions = new Set<Transition>();
 
     const alphabet = this.alphabet();
     const initialStateSet = this.epsilonClosure(this.initial);
-    const queue: Set<State>[] = [initialStateSet];
-    let count = 0;
 
-    while (queue.length) {
-      const currentStateSet = queue.shift() as Set<State>;
-      const currentState = new State(
-        `q${count++}`,
-        currentStateSet.values().next().value.center,
-        Array.from(currentStateSet).some((state: State) => state.isFinal)
-      );
-      dfaStates.add(currentState);
+    // Marks this automatas states
+    const processedStateSets = new Map<string, State>();
+    // Create initial DFA state
+    const initialStateSetString = this.stateSetToString(initialStateSet);
+    const initialDFAState = new State(
+      "q0",
+      initialStateSet.values().next().value.center,
+      Array.from(initialStateSet).some((state: State) => state.isFinal)
+    );
+    dfaStates.set(initialStateSetString, initialDFAState);
+    processedStateSets.set(initialStateSetString, initialDFAState);
+
+    // Queue of state sets to process
+    const queue: Array<[string, Set<State>]> = [
+      [initialStateSetString, initialStateSet],
+    ];
+    let nextStateId = 1;
+
+    while (queue.length > 0) {
+      const [currentStateSetString, currentStateSet] = queue.shift()!;
+      const currentDFAState = processedStateSets.get(currentStateSetString)!;
+
       for (const symbol of alphabet) {
+        // Find all reachable states by taking symbol transition from any state in the set
+        const nextStateSet = new Set<State>();
+
         for (const state of currentStateSet) {
-          const transition = this.transitions.find(
+          const transitions = this.transitions.filter(
             (t) => t.from.id === state.id && t.symbol.values.includes(symbol)
           );
-          if (transition) {
-            const nextStates = this.epsilonClosure(transition!.to);
-            queue.push(nextStates);
-            const nextState = new State(
-              `q${count++}`,
-              nextStates.values().next().value.center
-            );
-            const newTransition = new Transition(
-              currentState,
-              nextState,
-              new Symbol([symbol])
-            );
-            dfaTransitions.add(newTransition);
+
+          for (const transition of transitions) {
+            // Add all states in the epsilon epsilonClosure
+            const reachableStates = this.epsilonClosure(transition.to);
+            for (const reachableState of reachableStates) {
+              nextStateSet.add(reachableState);
+            }
           }
         }
+
+        if (nextStateSet.size === 0) continue;
+
+        const nextStateSetString = this.stateSetToString(nextStateSet);
+        let nextDFAState: State;
+
+        if (!processedStateSets.has(nextStateSetString)) {
+          // If the state does not exist in the DFA, create a new state and add it
+          nextDFAState = new State(
+            `q${nextStateId++}`,
+            nextStateSet.values().next().value.center,
+            Array.from(nextStateSet).some((state: State) => state.isFinal)
+          );
+
+          dfaStates.set(nextStateSetString, nextDFAState);
+          processedStateSets.set(nextStateSetString, nextDFAState);
+
+          // Add to queue for processing
+          queue.push([nextStateSetString, nextStateSet]);
+        } else {
+          nextDFAState = processedStateSets.get(nextStateSetString)!;
+        }
+
+        // Create transition
+        const newTransition = new Transition(
+          currentDFAState,
+          nextDFAState,
+          new Symbol([symbol])
+        );
+        dfaTransitions.add(newTransition);
       }
     }
     const dfa = new Automata(
-      `${this.name} as DFa`,
-      Array.from(dfaStates),
+      `${this.name} as DFA`,
+      Array.from(dfaStates.values()),
       Array.from(dfaTransitions),
-      dfaStates.values().next().value
+      initialDFAState
     );
     console.log(dfa);
     return dfa;
