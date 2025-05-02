@@ -60,7 +60,7 @@
 
   <!-- Context Menu -->
   <v-menu
-    v-if="contextMenu.stateIndex !== null"
+    v-if="contextMenu.stateIndex !== -1"
     :style="contextMenuStyle"
     v-model="contextMenuVisible"
     offset-y
@@ -115,10 +115,7 @@
             />
           </v-col>
           <v-col cols="auto">
-            <v-btn
-              color="primary"
-              @click="removeTransitionSymbol(editingTransitionIndex, index)"
-            >
+            <v-btn color="primary" @click="deleteTransitionSymbol(index)">
               Remove
             </v-btn>
           </v-col>
@@ -183,11 +180,11 @@ import Symbol from "../models/Symbol";
 import Automata from "../models/Automata";
 import { epsilon } from "../global";
 
-const canvas = ref(null);
-const ctx = ref(null);
+const canvas = ref<HTMLCanvasElement | null>(null);
+const ctx = ref<CanvasRenderingContext2D | null>(null);
 
 // App state
-const automatas = ref([]);
+const automatas = ref<Array<Automata>>([]);
 const automataType = ref(true); // false for NFA, true for DFA
 const mode = ref("create");
 const tabIndex = ref(0);
@@ -195,19 +192,19 @@ const draggingState = reactive({
   index: null,
   offset: { x: 0, y: 0 },
 });
-const transitionDragStart = ref(null);
-const transitionDragEnd = ref(null);
-const isDrawingTransition = ref(false);
+const dragStartStateIndex = ref<number | null>(null);
+const cursorPosition = ref<State | null>(null);
 const contextMenu = reactive({
-  stateIndex: null,
+  stateIndex: -1,
   x: 0,
   y: 0,
 });
-const editingTransitionIndex = ref(null);
+const editingTransitionIndex = ref<number | null>(null);
 const transitionEditText = ref("");
 const showTestModal = ref(false);
 const contextMenuVisible = ref(false);
 const transitionEditVisible = ref(false);
+
 const testInput = ref("");
 const testResult = ref("");
 
@@ -215,6 +212,10 @@ const contextMenuStyle = computed(() => ({
   left: `${contextMenu.x}px`,
   top: `${contextMenu.y}px`,
 }));
+
+const lastFindStateTime = ref(0);
+const throttleInterval = 300; //ms
+let cachedStateIndex = -1;
 
 window.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.keyCode == 90) {
@@ -225,7 +226,7 @@ window.addEventListener("keydown", (e) => {
 
 onMounted(() => {
   const savedAutomatas = localStorage.getItem("automatas")
-    ? JSON.parse(localStorage.getItem("automatas"))
+    ? JSON.parse(localStorage.getItem("automatas")!)
     : [];
   if (savedAutomatas.length === 0) {
     automatas.value.push(new Automata());
@@ -237,58 +238,51 @@ onMounted(() => {
     }
   }
 
-  ctx.value = canvas.value.getContext("2d");
+  ctx.value = canvas.value?.getContext("2d");
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
   requestAnimationFrame(draw);
 });
 
 function resizeCanvas() {
+  if (!canvas.value) return;
+
   canvas.value.width = window.innerWidth;
   canvas.value.height =
     window.innerHeight -
-    document.getElementById("top-menu").offsetHeight -
-    document.getElementById("tabs").offsetHeight; // Adjust for mode selector
+    document.getElementById("top-menu")!.offsetHeight -
+    document.getElementById("tabs")!.offsetHeight; // Adjust for mode selector
 }
 
 function draw() {
-  if (!ctx.value) return;
+  if (!ctx.value || !canvas.value) return;
 
   ctx.value.clearRect(0, 0, canvas.value?.width, canvas.value?.height);
 
   // Draw transitions
-  automatas.value[tabIndex.value]?.transitions.forEach((transition) => {
-    drawTransition(transition);
-  });
-
-  if (isDrawingTransition.value) {
-    const fromState =
-      automatas.value[tabIndex.value].states[transitionDragStart.value];
-    ctx.value.beginPath();
-    ctx.value.moveTo(fromState.center.x, fromState.center.y);
-    ctx.value.lineTo(draggingState.currentX, draggingState.currentY);
-    ctx.value.strokeStyle = "black";
-    ctx.value.stroke();
-  }
+  automatas.value[tabIndex.value]?.transitions.forEach(
+    (transition: Transition) => {
+      drawTransition(transition);
+    }
+  );
 
   // Draw states
-  automatas.value[tabIndex.value]?.states.forEach((state) => {
+  automatas.value[tabIndex.value]?.states.forEach((state: State) => {
     drawState(state);
   });
 
   // Draw dragging transition preview (NOT WORKING)
-  // if (transitionDragStart.value !== null) {
-  //   const fromState = states.value[transitionDragStart.value];
-  //   ctx.value.beginPath();
-  //   ctx.value.moveTo(fromState.x, fromState.y);
-  //   ctx.value.lineTo(draggingState.currentX, draggingState.currentY);
-  //   ctx.value.strokeStyle = "black";
-  //   ctx.value.stroke();
-  // }
+  if (dragStartStateIndex.value !== null) {
+    const fromState =
+      automatas.value[tabIndex.value].states[dragStartStateIndex.value];
+    canvasArrow(fromState.center, cursorPosition.value);
+  }
   requestAnimationFrame(draw);
 }
 
-function drawState(state) {
+function drawState(state: State) {
+  if (!ctx.value) return;
+
   ctx.value.beginPath();
   // Draw circle inner circle
   ctx.value.arc(state.center.x, state.center.y, state.radius, 0, Math.PI * 2);
@@ -344,14 +338,16 @@ function drawState(state) {
   ctx.value.fillText(state.name, state.center.x, state.center.y);
 }
 
-function drawTransition(transition) {
+function drawTransition(transition: Transition) {
+  if (!ctx.value) return;
+
   ctx.value.beginPath();
   const fromState = automatas.value[tabIndex.value].states.find(
-    (state) => state.id === transition.from.id
-  );
+    (state: State) => state.id === transition.from.id
+  )!;
   const toState = automatas.value[tabIndex.value].states.find(
-    (state) => state.id === transition.to.id
-  );
+    (state: State) => state.id === transition.to.id
+  )!;
   if (transition.from.id === transition.to.id) {
     // Get states from id
     // Draw bezier from same state
@@ -419,6 +415,8 @@ function drawTransition(transition) {
 }
 
 function canvasArrow(from: Point, to: Point) {
+  if (!ctx.value) return;
+
   const headlen = 10;
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -440,14 +438,14 @@ function canvasArrow(from: Point, to: Point) {
   ctx.value.stroke();
 }
 
-function transitionText(transition) {
+function transitionText(transition: Transition) {
   let epsilonedTransitions = transition.symbol.values.map((value) =>
     value === "" ? epsilon : value
   );
   return epsilonedTransitions.join(", ");
 }
 
-function selectAutomata(index) {
+function selectAutomata(index: number) {
   tabIndex.value = index;
 }
 
@@ -457,20 +455,22 @@ function createNewAutomata() {
   automatas.value[tabIndex.value].save(tabIndex.value);
 }
 
-function removeAutomata(index) {
+function removeAutomata(index: number) {
   automatas.value.splice(index, 1);
-  tabIndex.value = 0;
+  selectAutomata(0);
   localStorage.setItem("automatas", JSON.stringify(automatas.value));
 }
 
 // Event handlers
-function handleMouseDown(event) {
+function handleMouseDown(event: MouseEvent) {
   if (event.button === 2) return;
+  if (!canvas.value) return;
+
   const rect = canvas.value.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  if (contextMenu.stateIndex !== null) {
+  if (contextMenu.stateIndex !== -1) {
     // If context menu is open, and clicked outside of it, close
     closeContextMenu();
   }
@@ -499,12 +499,15 @@ function handleMouseDown(event) {
       automatas.value[tabIndex.value].save(tabIndex.value);
     } else {
       // Start a new transition
-      transitionDragStart.value = stateIndex;
+      dragStartStateIndex.value = stateIndex;
+      cursorPosition.value = new Point(x, y);
     }
   }
 }
 
-function handleMouseMove(event) {
+function handleMouseMove(event: MouseEvent) {
+  if (!canvas.value) return;
+
   const rect = canvas.value.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -516,16 +519,32 @@ function handleMouseMove(event) {
     automatas.value[tabIndex.value].states[draggingState.index].center.y =
       y - draggingState.offset.y;
     automatas.value[tabIndex.value].save(tabIndex.value);
-  } else if (transitionDragStart.value !== null) {
-    // Draw transition cursor line
-    // transitionDragEnd.value = { x, y };
-    // isDrawingTransition.value = true;
-    // draw();
+  } else if (dragStartStateIndex.value !== null) {
+    // Draw arrow from state to cursor
+    cursorPosition.value = new Point(x, y);
+  } else {
+    if (mode.value === "move") {
+      const currentTime = Date.now();
+
+      if (currentTime - lastFindStateTime.value > throttleInterval) {
+        cachedStateIndex = findStateAt(x, y);
+        lastFindStateTime.value = currentTime;
+      }
+
+      // Use cached state index if available
+      if (cachedStateIndex !== -1) {
+        canvas.value.style.cursor = "grabbing";
+      } else {
+        canvas.value.style.cursor = "default";
+      }
+    }
   }
 }
 
-function handleMouseUp(event) {
-  if (mode.value === "create" && transitionDragStart.value !== null) {
+function handleMouseUp(event: MouseEvent) {
+  if (!canvas.value) return;
+
+  if (mode.value === "create" && dragStartStateIndex.value !== null) {
     // Create mode and transition drag has started
     const rect = canvas.value.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -536,10 +555,10 @@ function handleMouseUp(event) {
       // Check if transition from-to already exists
       const existingTransition = automatas.value[
         tabIndex.value
-      ]?.transitions.find(
-        (t) =>
+      ].transitions.find(
+        (t: Transition) =>
           t.from.id ===
-            automatas.value[tabIndex.value].states[transitionDragStart.value]
+            automatas.value[tabIndex.value].states[dragStartStateIndex.value]
               .id &&
           t.to.id === automatas.value[tabIndex.value].states[endIndex].id
       );
@@ -550,7 +569,7 @@ function handleMouseUp(event) {
         // Create transition
         automatas.value[tabIndex.value]?.transitions.push(
           new Transition(
-            automatas.value[tabIndex.value].states[transitionDragStart.value],
+            automatas.value[tabIndex.value].states[dragStartStateIndex.value],
             automatas.value[tabIndex.value].states[endIndex],
             new Symbol([""], new Point(x, y))
           )
@@ -562,13 +581,14 @@ function handleMouseUp(event) {
     }
   }
 
-  transitionDragStart.value = null;
-  transitionDragEnd.value = null;
-  isDrawingTransition.value = false;
+  dragStartStateIndex.value = null;
+  cursorPosition.value = null;
   draggingState.index = null;
 }
 
-function handleContextMenu(event) {
+function handleContextMenu(event: MouseEvent) {
+  if (!canvas.value) return;
+
   const rect = canvas.value.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -588,7 +608,7 @@ function handleContextMenu(event) {
   }
 }
 
-function openTransitionEdit(transitionIndex) {
+function openTransitionEdit(transitionIndex: number) {
   editingTransitionIndex.value = transitionIndex;
   transitionEditVisible.value = true;
   transitionEditText.value =
@@ -597,20 +617,22 @@ function openTransitionEdit(transitionIndex) {
     ]?.symbol.values.join(",");
 }
 
-function findStateAt(x, y) {
-  return automatas.value[tabIndex.value]?.states.findIndex((state) => {
+function findStateAt(x: number, y: number) {
+  return automatas.value[tabIndex.value]?.states.findIndex((state: State) => {
     const dx = x - state.center.x;
     const dy = y - state.center.y;
     return Math.sqrt(dx * dx + dy * dy) <= state.radius;
   });
 }
 
-function findTransitionNear(x, y) {
+function findTransitionNear(x: number, y: number) {
   const pos = new Point(x, y);
-  return automatas.value[tabIndex.value].transitions.findIndex((t) => {
-    const a = new Point(t.symbol.position.x, t.symbol.position.y);
-    return pos.distanceTo(a) < 30;
-  });
+  return automatas.value[tabIndex.value].transitions.findIndex(
+    (t: Transition) => {
+      const a = new Point(t.symbol.position.x, t.symbol.position.y);
+      return pos.distanceTo(a) < 30;
+    }
+  );
 }
 
 function deleteTransition() {
@@ -624,7 +646,22 @@ function deleteTransition() {
   closeTransitionEdit();
 }
 
-function deleteState(index) {
+function deleteTransitionSymbol(index: number) {
+  if (editingTransitionIndex.value === null) return;
+  // Delete transition symbol
+  automatas.value[tabIndex.value].transitions[
+    editingTransitionIndex.value
+  ].removeSymbolViaIndex(index);
+  if (
+    automatas.value[tabIndex.value].transitions[editingTransitionIndex.value]
+      .symbol.values.length === 0
+  ) {
+    deleteTransition();
+  }
+  automatas.value[tabIndex.value].save(tabIndex.value);
+}
+
+function deleteState(index: number) {
   // Delete state
   const state = automatas.value[tabIndex.value].states[index];
   automatas.value[tabIndex.value].deleteState(state);
@@ -632,14 +669,14 @@ function deleteState(index) {
   closeContextMenu();
 }
 
-function setInitialState(index) {
+function setInitialState(index: number) {
   const state = automatas.value[tabIndex.value].states[index];
   automatas.value[tabIndex.value].setInitial(state);
   automatas.value[tabIndex.value].save(tabIndex.value);
   closeContextMenu();
 }
 
-function toggleFinalState(index) {
+function toggleFinalState(index: number) {
   automatas.value[tabIndex.value].states[index].isFinal =
     !automatas.value[tabIndex.value].states[index].isFinal;
   automatas.value[tabIndex.value].save(tabIndex.value);
@@ -647,7 +684,7 @@ function toggleFinalState(index) {
 }
 
 function closeContextMenu() {
-  contextMenu.stateIndex = null;
+  contextMenu.stateIndex = -1;
   contextMenuVisible.value = false;
 }
 
@@ -662,6 +699,7 @@ function addTransitionSymbol() {
 // Transition editing
 function closeTransitionEdit() {
   transitionEditVisible.value = false;
+  automatas.value[tabIndex.value].save(tabIndex.value);
 }
 
 // Test execution
@@ -673,9 +711,7 @@ function runTest() {
 function convertToDFA() {
   const dfa = automatas.value[tabIndex.value].convertToDFA();
   automatas.value.push(dfa);
-  dfa.save(
-    automatas.value.length - 1
-  );
+  dfa.save(automatas.value.length - 1);
 }
 
 function clearAutomata() {
@@ -699,10 +735,10 @@ function saveToDevice() {
 }
 
 function clickLoadFile() {
-  document.getElementById("load-file").click();
+  document?.getElementById("load-file")?.click();
 }
 
-function loadFromDevice(event) {
+function loadFromDevice(event: Event) {
   const file = event.target.files[0];
   if (!file) return;
 

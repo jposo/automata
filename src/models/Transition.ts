@@ -18,4 +18,8 @@ export default class Transition {
   public removeSymbol(symbol: string): void {
     this.symbol.values = this.symbol.values.filter((value) => value !== symbol);
   }
+
+  public removeSymbolViaIndex(index: number): void {
+    this.symbol.values.splice(index, 1);
+  }
 }
