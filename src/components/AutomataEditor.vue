@@ -457,7 +457,15 @@ function createNewAutomata() {
 
 function removeAutomata(index: number) {
   automatas.value.splice(index, 1);
-  selectAutomata(0);
+
+  if (automatas.value.length === 0) {
+    // If no automata are left, create a new one
+    createNewAutomata();
+  } else {
+    // Otherwise, select the first tab or adjust the tabIndex
+    tabIndex.value = Math.min(tabIndex.value, automatas.value.length - 1);
+  }
+
   localStorage.setItem("automatas", JSON.stringify(automatas.value));
 }
 
